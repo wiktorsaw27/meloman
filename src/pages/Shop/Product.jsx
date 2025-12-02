@@ -1,21 +1,27 @@
-import React, { useContext } from 'react'
-import {ShopContext} from '../../Context/ShopContext'
+import React, { useContext } from 'react';
+import { ShopContext } from '../../Context/ShopContext';
 
 export const Product = (props) => {
-    const {id, productName, price, productImage} = props.data;
-    const { addToCart, cartItems } = useContext(ShopContext);
-    const cartItemAmount = cartItems[id];
+  const { id, productName, price, productImage } = props.data;
+  const { addToCart, cartItems } = useContext(ShopContext);
+  const cartItemAmount = cartItems[id];
 
   return (
     <div className='product'>
-        <img src={productImage}/>
-        <div className="description">
-            <p><b>{productName}</b></p>
-            <p>{price} zł</p>
-        </div>
-        <button className='addToCartBttn' onClick={() => addToCart(id)}>
-            Dodaj do koszyka { cartItemAmount > 0 && <> ({cartItemAmount})</>}
-        </button>
+      <img 
+        src={`http://localhost:5000/images/${productImage}`} 
+        alt={productName}
+        loading="lazy"
+      />
+
+      <div className="description">
+        <p><b>{productName}</b></p>
+        <p>{price} zł</p>
+      </div>
+
+      <button className='addToCartBttn' onClick={() => addToCart(id)}>
+        Dodaj do koszyka {cartItemAmount > 0 && <> ({cartItemAmount})</>}
+      </button>
     </div>
-  )
-}
+  );
+};

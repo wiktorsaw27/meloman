@@ -1,97 +1,95 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { PRODUCTS } from '../Products';
 
 export const ShopContext = createContext(null);
 
-// Klucz cache + czas życia w ms
-const PRODUCTS_CACHE_KEY = "products_cache";
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 godziny
+export const ShopContextProvider = ({ children }) => {
+  const [products, setProducts] = useState([]);
+  const [cartItems, setCartItems] = useState({});
 
-export const ShopContextProvider = (props) => {
-    const [products, setProducts] = useState(PRODUCTS);
-    const [cartItems, setCartItems] = useState({});
+  // pomocnicza funkcja do zainicjowania koszyka na podstawie listy produktów
+  const initCartFromProducts = (productsArray) => {
+    const cart = {};
+    productsArray.forEach((p) => {
+      // zakładamy, że każdy produkt ma unikalne pole "id"
+      cart[p.id] = 0;
+    });
+    return cart;
+  };
 
-    // Inicjalizacja koszyka
-    useEffect(() => {
-        const cart = {};
-        for (let i = 1; i < products.length + 1; i++) {
-            cart[i] = 0;
-        }
-        setCartItems(cart);
-    }, [products]);
+  // pobieranie produktów z backendu Flask
+  useEffect(() => {
+    fetch("http://localhost:5000/api/products")
+      .then((res) => res.json())
+      .then((data) => {
+        setProducts(data);
+        setCartItems(initCartFromProducts(data));
+      })
+      .catch((err) => {
+        console.error("Błąd pobierania produktów z backendu:", err);
+      });
+  }, []);
 
-    // ----  CACHE PRODUKTÓW (OPTIMALIZACJA) ----
-    useEffect(() => {
-        const now = Date.now();
-        const cached = localStorage.getItem(PRODUCTS_CACHE_KEY);
-
-        if (cached) {
-            const parsed = JSON.parse(cached);
-            if (parsed.expiresAt > now) {
-                // używamy danych z cache
-                setProducts(parsed.data);
-                return;
-            }
-        }
-
-        // Brak cache albo cache wygasł → zapisujemy produkty
-        localStorage.setItem(
-            PRODUCTS_CACHE_KEY,
-            JSON.stringify({
-                data: PRODUCTS,
-                expiresAt: now + CACHE_TTL,
-            })
+  // obliczanie całkowitej kwoty w koszyku
+  const getTotalCartAmount = () => {
+    let totalAmount = 0;
+    for (const itemId in cartItems) {
+      if (cartItems[itemId] > 0) {
+        const itemInfo = products.find(
+          (product) => product.id === Number(itemId)
         );
-    }, []);
-    // ---- KONIEC CACHE PRODUKTÓW ----
-
-    // Funkcje sklepu (bez zmian)
-    const getTotalCartAmount = () => {
-        let totalAmount = 0;
-        for (const item in cartItems){
-            if (cartItems[item] > 0) {
-                let itemInfo = products.find((p) => p.id === Number(item));
-                totalAmount += cartItems[item] * itemInfo.price;
-            }
+        if (itemInfo) {
+          totalAmount += cartItems[itemId] * itemInfo.price;
         }
-        return totalAmount;
-    };
+      }
+    }
+    return totalAmount;
+  };
 
-    const getActuallItemAmount = () => {
-        let totalAmount = 0;
-        for (const item in cartItems){
-            if (cartItems[item] > 0) {
-                totalAmount += cartItems[item];
-            }
-        }
-        return totalAmount;
-    };
+  // liczba wszystkich sztuk produktów w koszyku
+  const getActuallItemAmount = () => {
+    let totalAmount = 0;
+    for (const itemId in cartItems) {
+      if (cartItems[itemId] > 0) {
+        totalAmount += cartItems[itemId];
+      }
+    }
+    return totalAmount;
+  };
 
-    const addToCart = (itemId) => {
-        setCartItems((prev) => ({...prev, [itemId] : prev[itemId]+1}));
-    };
+  const addToCart = (itemId) => {
+    setCartItems((prev) => ({
+      ...prev,
+      [itemId]: (prev[itemId] || 0) + 1,
+    }));
+  };
 
-    const removeFormCart = (itemId) => {
-        setCartItems((prev) => ({...prev, [itemId] : prev[itemId]-1}));
-    };
+  const removeFormCart = (itemId) => {
+    setCartItems((prev) => ({
+      ...prev,
+      [itemId]: (prev[itemId] || 0) - 1,
+    }));
+  };
 
-    const updateCartItemCount = (newAmount, itemId) => {
-        setCartItems((prev) => ({...prev, [itemId] : newAmount}));
-    };
+  const updateCartItemCount = (newAmount, itemId) => {
+    setCartItems((prev) => ({
+      ...prev,
+      [itemId]: newAmount,
+    }));
+  };
 
-    const contextValue = {
-        products,
-        cartItems,
-        addToCart,
-        removeFormCart,
-        updateCartItemCount,
-        getTotalCartAmount,
-        getActuallItemAmount
-    };
+  const contextValue = {
+    products,
+    cartItems,
+    addToCart,
+    removeFormCart,
+    updateCartItemCount,
+    getTotalCartAmount,
+    getActuallItemAmount,
+  };
 
-    return (
-        <ShopContext.Provider value={contextValue}>
-            {props.children}
-        </ShopContext.Provider>
-    );
+  return (
+    <ShopContext.Provider value={contextValue}>
+      {children}
+    </ShopContext.Provider>
+  );
 };
